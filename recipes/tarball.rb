@@ -81,12 +81,7 @@ end
   end
 end
 
-[node.cassandra.lib_dir,
- node.cassandra.data_root_dir,
- node.cassandra.conf_dir,
- File.join(node.cassandra.installation_dir, "data"),
- File.join(node.cassandra.installation_dir, "system"),
- node.cassandra.installation_dir].each do |dir|
+[node.cassandra.installation_dir, node.cassandra.data_root_dir, node.cassandra.conf_dir].each do |dir|
   # Chef sets permissions only to leaf nodes, so we have to use a Bash script. MK.
   bash "chown -R #{node.cassandra.user}:#{node.cassandra.user} #{dir}" do
     user "root"
