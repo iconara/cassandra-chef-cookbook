@@ -106,14 +106,6 @@ end
   end
 end
 
-template File.join(node.cassandra.bin_dir, "cassandra-cli") do
-  source "cassandra-cli.erb"
-  owner node.cassandra.user
-  group node.cassandra.user
-  mode  0755
-end
-
-
 # 5. Symlink
 %w(cassandra cassandra-shell cassandra-cli).each do |f|
   link "/usr/local/bin/#{f}" do
