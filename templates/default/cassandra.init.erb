@@ -20,13 +20,11 @@ set -e
 export CASSANDRA_HOME=<%= node.cassandra.installation_dir %>
 export CASSANDRA_INCLUDE=$CASSANDRA_HOME/bin/cassandra.in.sh
 export CASSANDRA_CONF=<%= node.cassandra.conf_dir %>
-export CASSANDRA_OWNR=<%= node.cassandra.user %>
+export CASSANDRA_USER=<%= node.cassandra.user %>
 
 NAME="cassandra"
 DAEMON=$CASSANDRA_HOME/bin/cassandra
-
-log_file=<%= node.cassandra.log_dir %>/cassandra.log
-pid_file=<%= node.cassandra.run_dir %>/cassandra.pid
+PID_FILE=<%= node.cassandra.run_dir %>/cassandra.pid
 
 test -x $DAEMON || exit 5
 
@@ -68,7 +66,7 @@ case $1 in
       fi
     fi
     log_daemon_msg "Starting $NAME"
-    if start-stop-daemon --start --quiet --oknodo --pidfile $PIDFILE --exec $DAEMON ; then
+    if start-stop-daemon --start --quiet --oknodo --pidfile $PID_FILE --user $CASSANDRA_USER --exec $DAEMON ; then
       log_end_msg 0
     else
       log_end_msg 1
