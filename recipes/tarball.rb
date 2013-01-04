@@ -109,7 +109,7 @@ end
 %w(cassandra-env.sh).each do |f|
   source_path = File.join(node.cassandra.installation_dir, 'conf', f)
   destination_path = File.join(node.cassandra.conf_dir, f)
-  execute do
+  execute "move #{f}" do
     user node.cassandra.user
     command "mv #{source_path} #{destination_path}"
     creates destination_path
