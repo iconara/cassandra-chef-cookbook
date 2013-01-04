@@ -1,77 +1,110 @@
 #!/bin/bash
 #
-# /etc/init.d/cassandra
-#
-# Startup script for Cassandra
-# 
-# chkconfig: 2345 20 80
-# description: Starts and stops Cassandra
+### BEGIN INIT INFO
+# Provides:          cassandra
+# Required-Start:    $remote_fs $network $named $time
+# Required-Stop:     $remote_fs $network $named $time
+# Should-Start:      ntp mdadm
+# Should-Stop:       ntp mdadm
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: distributed storage system for structured data
+# Description:       Cassandra is a distributed (peer-to-peer) system for
+#                    the management and storage of structured data.
+### END INIT INFO
 
-[ -e /etc/rc.d/init.d/functions ] && . /etc/rc.d/init.d/functions
+set -e
+
+. /lib/lsb/init-functions
 
 export CASSANDRA_HOME=<%= node.cassandra.installation_dir %>
 export CASSANDRA_INCLUDE=$CASSANDRA_HOME/bin/cassandra.in.sh
 export CASSANDRA_CONF=<%= node.cassandra.conf_dir %>
 export CASSANDRA_OWNR=<%= node.cassandra.user %>
+
 NAME="cassandra"
+DAEMON=$CASSANDRA_HOME/bin/cassandra
+
 log_file=<%= node.cassandra.log_dir %>/cassandra.log
 pid_file=<%= node.cassandra.run_dir %>/cassandra.pid
-CASSANDRA_PROG=$CASSANDRA_HOME/bin/cassandra
 
-# The first existing directory is used for JAVA_HOME if needed.
+test -x $DAEMON || exit 5
+
 JVM_SEARCH_DIRS="/usr/lib/jvm/jre /usr/lib/jvm/jre-1.6.* /usr/lib/jvm/java-1.6.*/jre /usr/lib/jvm/java-6*/jre"
 
-# Read configuration variable file if it is present
 [ -r /etc/default/$NAME ] && . /etc/default/$NAME
 
-# If JAVA_HOME has not been set, try to determine it.
 if [ -z "$JAVA_HOME" ]; then
-    # If java is in PATH, use a JAVA_HOME that corresponds to that. This is
-    # both consistent with how the upstream startup script works, and with
-    # the use of alternatives to set a system JVM (as is done on Debian and
-    # Red Hat derivatives).
-    java="`/usr/bin/which java 2>/dev/null`"
-    if [ -n "$java" ]; then
-        java=`readlink --canonicalize "$java"`
-        JAVA_HOME=`dirname "\`dirname \$java\`"`
-    else
-        # No JAVA_HOME set and no java found in PATH; search for a JVM.
-        for jdir in $JVM_SEARCH_DIRS; do
-            if [ -x "$jdir/bin/java" ]; then
-                JAVA_HOME="$jdir"
-                break
-            fi
-        done
-        # if JAVA_HOME is still empty here, punt.
+  # If java is in PATH, use a JAVA_HOME that corresponds to that. This is
+  # both consistent with how the upstream startup script works, and with
+  # the use of alternatives to set a system JVM (as is done on Debian and
+  # Red Hat derivatives).
+  java="`/usr/bin/which java 2>/dev/null`"
+  if [ -n "$java" ]; then
+    java=`readlink --canonicalize "$java"`
+    JAVA_HOME=`dirname "\`dirname \$java\`"`
+  else
+    for jdir in $JVM_SEARCH_DIRS; do
+      if [ -x "$jdir/bin/java" ]; then
+        JAVA_HOME="$jdir"
+        break
+      fi
+    done
+    if [ -z "$JAVA_HOME" ]; then
+      exit 1
     fi
+  fi
 fi
+
 JAVA="$JAVA_HOME/bin/java"
 export JAVA_HOME JAVA
 
-case "$1" in
-    start)
-        # Cassandra startup
-        echo -n "Starting Cassandra: "
-        su $CASSANDRA_OWNR -c "$CASSANDRA_PROG -p $pid_file" > $log_file 2>&1
-        echo "OK"
-        ;;
-    stop)
-        # Cassandra shutdown
-        echo -n "Shutdown Cassandra: "
-        su $CASSANDRA_OWNR -c "kill `cat $pid_file`"
-        echo "OK"
-        ;;
-    reload|restart)
-        $0 stop
-        $0 start
-        ;;
-    status)
-        status -p $pid_file cassandra
-        ;;
-    *)
-        echo "Usage: `basename $0` start|stop|status|restart|reload"
-        exit 1
+case $1 in
+  start)
+    if [ -e $PIDFILE ]; then
+      status_of_proc -p $PIDFILE $DAEMON "$NAME process" && status="0" || status="$?"
+      if [ $status = "0" ]; then
+        exit
+      fi
+    fi
+    log_daemon_msg "Starting $NAME"
+    if start-stop-daemon --start --quiet --oknodo --pidfile $PIDFILE --exec $DAEMON ; then
+      log_end_msg 0
+    else
+      log_end_msg 1
+    fi
+  ;;
+
+  stop)
+    if [ -e $PIDFILE ]; then
+      status_of_proc -p $PIDFILE $DAEMON "Stoppping the $NAME process" && status="0" || status="$?"
+      if [ "$status" = 0 ]; then
+        start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE
+        /bin/rm -rf $PIDFILE
+      fi
+    else
+      log_daemon_msg "$NAME process is not running"
+      log_end_msg 0
+    fi
+  ;;
+
+  restart)
+    $0 stop && sleep 2 && $0 start
+  ;;
+
+  status)
+    if [ -e $PIDFILE ]; then
+      status_of_proc -p $PIDFILE $DAEMON "$NAME process" && exit 0 || exit $?
+    else
+      log_daemon_msg "$NAME Process is not running"
+      log_end_msg 0
+    fi
+  ;;
+
+  *)
+    echo "Usage: $0 {start|stop|restart|status}"
+    exit 2
+  ;;
 esac
 
 exit 0
-
