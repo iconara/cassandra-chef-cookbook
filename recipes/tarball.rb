@@ -125,16 +125,13 @@ bash 'change heap limits in cassandra-env.sh' do
 end
 
 # 5. Install bin stubs
-bin_files = Dir[File.join(node.cassandra.installation_dir, 'bin', '*')]
-bin_files.reject! { |path| File.fnmatch?('*.bat', path) }
-bin_files.each do |f|
-  basename = File.basename(f)
-  file "/usr/local/bin/#{basename}" do
+%w(cassandra cassandra-cli cassandra-shuffle cqlsh debug-cqlsh json2sstable nodetool sstable2json sstablekeys sstableloader sstablescrub).each do |f|
+  file "/usr/local/bin/#{f}" do
     owner node.cassandra.user
     group node.cassandra.user
     mode 00755
     action :create
-    content "#!/bin/sh\n#{node.cassandra.installation_dir}/bin/#{basename}"
+    content "#!/bin/sh\n#{node.cassandra.installation_dir}/bin/#{f}"
   end
 end
 
