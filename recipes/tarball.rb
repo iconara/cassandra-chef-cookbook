@@ -2,6 +2,7 @@
 # Cookbook Name:: cassandra-server
 # Recipe:: tarball
 # Copyright 2012, Michael S. Klishin <michaelklishin@me.com>
+# Copyright 2013, Theo Hultberg <theo@iconara.net>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
