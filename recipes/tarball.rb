@@ -81,14 +81,6 @@ end
   end
 end
 
-[node.cassandra.installation_dir, node.cassandra.data_root_dir, node.cassandra.conf_dir].each do |dir|
-  # Chef sets permissions only to leaf nodes, so we have to use a Bash script. MK.
-  bash "chown -R #{node.cassandra.user}:#{node.cassandra.user} #{dir}" do
-    user "root"
-    code "mkdir -p #{dir} && chown -R #{node.cassandra.user}:#{node.cassandra.user} #{dir}"
-  end
-end
-
 
 # 4. Install config files and binaries
 %w(cassandra.yaml).each do |f|
@@ -130,6 +122,20 @@ end
 end
 
 # 6. Know Your Limits
+[
+  node.cassandra.installation_dir,
+  node.cassandra.log_dir,
+  node.cassandra.run_dir,
+  node.cassandra.data_root_dir,
+  node.cassandra.conf_dir
+].each do |dir|
+  # Chef sets permissions only to leaf nodes, so we have to use a Bash script. MK.
+  bash "chown -R #{node.cassandra.user}:#{node.cassandra.user} #{dir}" do
+    user "root"
+    code "mkdir -p #{dir} && chown -R #{node.cassandra.user}:#{node.cassandra.user} #{dir}"
+  end
+end
+
 template "/etc/security/limits.d/#{node.cassandra.user}.conf" do
   source "cassandra-limits.conf.erb"
   owner node.cassandra.user
