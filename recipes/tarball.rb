@@ -97,13 +97,21 @@ end
 
 
 # 4. Install config files and binaries
-%w(cassandra.yaml cassandra-env.sh).each do |f|
+%w(cassandra.yaml).each do |f|
   template File.join(node.cassandra.conf_dir, f) do
     source "#{f}.erb"
     owner node.cassandra.user
     group node.cassandra.user
     mode  0644
   end
+end
+
+bash "change heap limits in cassandra-env.sh" do
+  user 'root'
+  code <<-EOS
+    sed -i -e's/#?MAX_HEAP_SIZE="\d+[MG]"/MAX_HEAP_SIZE="256M"/' #{node.cassandra.conf_dir}/cassandra-env.sh
+    sed -i -e's/#?HEAP_NEWSIZE="\d+[MG]"/HEAP_NEWSIZE="128M"/' #{node.cassandra.conf_dir}/cassandra-env.sh
+  EOS
 end
 
 # 5. Symlink
@@ -115,7 +123,6 @@ end
     not_if  "test -L /usr/local/bin/#{f}"
   end
 end
-
 
 # 6. Know Your Limits
 template "/etc/security/limits.d/#{node.cassandra.user}.conf" do
