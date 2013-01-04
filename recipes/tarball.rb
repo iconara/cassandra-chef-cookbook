@@ -71,7 +71,7 @@ bash "extract #{tmp}, move it to #{node.cassandra.installation_dir}" do
   creates "#{node.cassandra.installation_dir}/bin/cassandra"
 end
 
-[node.cassandra.data_root_dir, node.cassandra.log_dir].each do |dir|
+[node.cassandra.data_root_dir, node.cassandra.log_dir, node.cassandra.run_dir].each do |dir|
   directory dir do
     owner     node.cassandra.user
     group     node.cassandra.user
