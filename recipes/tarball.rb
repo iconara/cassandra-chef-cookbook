@@ -125,12 +125,14 @@ bash 'change heap limits in cassandra-env.sh' do
 end
 
 # 5. Symlink
-%w(cassandra cassandra-shell cassandra-cli).each do |f|
-  link "/usr/local/bin/#{f}" do
-    owner node.cassandra.user
-    group node.cassandra.user
-    to    "#{node.cassandra.installation_dir}/bin/#{f}"
-    not_if  "test -L /usr/local/bin/#{f}"
+bin_files = Dir[File.join(node.cassandra.installation_dir, 'bin', '*')]
+bin_files.reject! { |path| File.fnmatch?('*.bat', path) }
+bin_files.each do |f|
+  link "/usr/local/bin/#{File.basename(f)}" do
+    owner  node.cassandra.user
+    group  node.cassandra.user
+    to     f
+    not_if "test -L /usr/local/bin/#{File.basename(f)}"
   end
 end
 
