@@ -1,6 +1,5 @@
 default[:cassandra] = {
   :cluster_name => "Test Cluster",
-  :initial_token => "",
   :seeds => "127.0.0.1",
   :tarball => {
     :url => "http://www.eu.apache.org/dist/cassandra/1.2.0/apache-cassandra-1.2.0-bin.tar.gz",
