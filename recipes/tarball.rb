@@ -48,9 +48,8 @@ end
 require "tmpdir"
 
 version     = node.cassandra.tarball.url.scan(/apache-cassandra-([\d.]+)-bin/).flatten.first
-td          = Dir.tmpdir
-tmp         = File.join(td, "apache-cassandra-#{version}-bin.tar.gz")
-tarball_dir = File.join(td, "apache-cassandra-#{version}")
+tmp         = File.join(Dir.tmpdir, "apache-cassandra-#{version}-bin.tar.gz")
+tarball_dir = File.join(Dir.tmpdir, "apache-cassandra-#{version}")
 
 remote_file(tmp) do
   source node.cassandra.tarball.url
