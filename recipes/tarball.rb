@@ -91,7 +91,6 @@ end
   # Chef sets permissions only to leaf nodes, so we have to use a Bash script. MK.
   bash "chown -R #{node.cassandra.user}:#{node.cassandra.user} #{dir}" do
     user "root"
-
     code "mkdir -p #{dir} && chown -R #{node.cassandra.user}:#{node.cassandra.user} #{dir}"
   end
 end
@@ -107,8 +106,18 @@ end
   end
 end
 
-bash "change heap limits in cassandra-env.sh" do
-  user 'root'
+%w(cassandra-env.sh).each do |f|
+  source_path = File.join(node.cassandra.installation_dir, 'conf', f)
+  destination_path = File.join(node.cassandra.conf_dir, f)
+  execute do
+    user node.cassandra.user
+    command "mv #{source_path} #{destination_path}"
+    creates destination_path
+  end
+end
+
+bash 'change heap limits in cassandra-env.sh' do
+  user node.cassandra.user
   code <<-EOS
     sed -i -e's/#?MAX_HEAP_SIZE="\d+[MG]"/MAX_HEAP_SIZE="256M"/' #{node.cassandra.conf_dir}/cassandra-env.sh
     sed -i -e's/#?HEAP_NEWSIZE="\d+[MG]"/HEAP_NEWSIZE="128M"/' #{node.cassandra.conf_dir}/cassandra-env.sh
