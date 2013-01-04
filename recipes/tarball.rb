@@ -21,6 +21,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+require 'tmpdir'
+
+
 include_recipe "java"
 
 package "jsvc" do
@@ -44,9 +47,6 @@ group node.cassandra.user do
   action :create
 end
 
-# 1. Download the tarball to /tmp
-require "tmpdir"
-
 version     = node.cassandra.tarball.url.scan(/apache-cassandra-([\d.]+)-bin/).flatten.first
 tmp         = File.join(Dir.tmpdir, "apache-cassandra-#{version}-bin.tar.gz")
 tarball_dir = File.join(Dir.tmpdir, "apache-cassandra-#{version}")
@@ -57,8 +57,6 @@ remote_file(tmp) do
   not_if "which cassandra"
 end
 
-# 2. Extract it
-# 3. Copy to /usr/local/cassandra, update permissions
 bash "extract #{tmp}, move it to #{node.cassandra.installation_dir}" do
   user "root"
   cwd  "/tmp"
@@ -81,8 +79,6 @@ end
   end
 end
 
-
-# 4. Install config files and binaries
 %w(cassandra.yaml).each do |f|
   template File.join(node.cassandra.conf_dir, f) do
     source "#{f}.erb"
@@ -110,7 +106,6 @@ bash 'change heap limits in cassandra-env.sh' do
   EOS
 end
 
-# 5. Install bin stubs
 %w(cassandra cassandra-cli cassandra-shuffle cqlsh debug-cqlsh json2sstable nodetool sstable2json sstablekeys sstableloader sstablescrub).each do |f|
   file "/usr/local/bin/#{f}" do
     owner node.cassandra.user
@@ -121,7 +116,6 @@ end
   end
 end
 
-# 6. Know Your Limits
 [
   node.cassandra.installation_dir,
   node.cassandra.log_dir,
@@ -150,7 +144,6 @@ ruby_block "make sure pam_limits.so is required" do
   end
 end
 
-# 6. init.d Service
 template "/etc/init.d/cassandra" do
   source "cassandra.init.erb"
   owner 'root'
