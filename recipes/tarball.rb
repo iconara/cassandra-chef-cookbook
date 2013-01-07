@@ -47,6 +47,13 @@ remote_file tarball_path do
   not_if 'which cassandra'
 end
 
+execute 'check tarball integrity' do
+  user 'root'
+  command "echo '#{node.cassandra.tarball.md5}  #{tarball_path}' | md5sum -c"
+  not_if 'which cassandra'
+  only_if { node.cassandra.tarball.md5 }
+end
+
 execute "extract the tarball and move it to #{node.cassandra.installation_dir}" do
   user 'root'
   cwd  Dir.tmpdir
