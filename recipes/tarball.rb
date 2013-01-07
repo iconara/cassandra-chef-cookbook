@@ -116,7 +116,7 @@ end
     group node.cassandra.user
     mode 00755
     action :create
-    content "#!/bin/sh\n#{node.cassandra.installation_dir}/bin/#{f}"
+    content %<#!/bin/sh\nexec "#{node.cassandra.installation_dir}/bin/#{f}" "$@"\n>
   end
 end
 
