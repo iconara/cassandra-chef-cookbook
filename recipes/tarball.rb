@@ -25,15 +25,8 @@
 require 'tmpdir'
 
 
-include_recipe "java"
-
-package "jsvc" do
-  action :install
-end
-
-#
-# User accounts
-#
+include_recipe 'java'
+include_recipe 'python'
 
 user node.cassandra.user do
   comment "Cassandra Server user"
@@ -43,31 +36,25 @@ user node.cassandra.user do
 end
 
 group node.cassandra.user do
-  (m = []) << node.cassandra.user
-  members m
+  members [node.cassandra.user]
   action :create
 end
 
-version     = node.cassandra.tarball.url.scan(/apache-cassandra-([\d.]+)-bin/).flatten.first
-tmp         = File.join(Dir.tmpdir, "apache-cassandra-#{version}-bin.tar.gz")
-tarball_dir = File.join(Dir.tmpdir, "apache-cassandra-#{version}")
+tarball_path = File.join(Dir.tmpdir, 'apache-cassandra.tar.gz')
 
-remote_file(tmp) do
+remote_file tarball_path do
   source node.cassandra.tarball.url
-
-  not_if "which cassandra"
+  not_if 'which cassandra'
 end
 
-bash "extract #{tmp}, move it to #{node.cassandra.installation_dir}" do
-  user "root"
-  cwd  "/tmp"
-
-  code <<-EOS
+execute "extract the tarball and move it to #{node.cassandra.installation_dir}" do
+  user 'root'
+  cwd  Dir.tmpdir
+  command <<-EOS
     rm -rf #{node.cassandra.installation_dir}
-    tar xfz #{tmp}
-    mv --force #{tarball_dir} #{node.cassandra.installation_dir}
+    mkdir #{node.cassandra.installation_dir}
+    tar -xf #{tarball_path} -C #{node.cassandra.installation_dir} --strip-components 1
   EOS
-
   creates "#{node.cassandra.installation_dir}/bin/cassandra"
 end
 
@@ -80,6 +67,23 @@ end
   end
 end
 
+execute 'fix permissions' do
+  user 'root'
+  command <<-EOS
+  chown -R #{node.cassandra.user}:#{node.cassandra.user} #{node.cassandra.installation_dir}
+  chmod -R 755 #{node.cassandra.run_dir} #{node.cassandra.log_dir} #{node.cassandra.data_root_dir}
+  EOS
+end
+
+actual_conf_dir = File.join(node.cassandra.installation_dir, 'conf')
+
+unless node.cassandra.conf_dir == actual_conf_dir
+  execute "link #{node.cassandra.conf_dir} to #{actual_conf_dir}" do
+    user 'root'
+    command "ln -fs #{actual_conf_dir} #{node.cassandra.conf_dir}"
+  end
+end
+
 %w(cassandra.yaml).each do |f|
   template File.join(node.cassandra.conf_dir, f) do
     source "#{f}.erb"
@@ -89,21 +93,18 @@ end
   end
 end
 
-%w(cassandra-env.sh).each do |f|
-  source_path = File.join(node.cassandra.installation_dir, 'conf', f)
-  destination_path = File.join(node.cassandra.conf_dir, f)
-  execute "move #{f}" do
-    user node.cassandra.user
-    command "mv #{source_path} #{destination_path}"
-    creates destination_path
-  end
+execute "change RMI settings in cassandra-env.sh" do
+  c_env_path = File.join(node.cassandra.conf_dir, 'cassandra-env.sh')
+  user node.cassandra.user
+  command <<-EOS
+    grep 'java.rmi.server.hostname=#{node.cassandra.listen_address}' #{c_env_path} > /dev/null || sed -i -e 's/JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.authenticate=false"/&\\nJVM_OPTS="$JVM_OPTS -Djava.rmi.server.hostname=#{node.cassandra.listen_address}"/' #{c_env_path}
+  EOS
 end
 
-bash 'change heap limits in cassandra-env.sh' do
+execute "change logging paths in #{node.cassandra.conf_dir}/log4j-server.properties" do
   user node.cassandra.user
-  code <<-EOS
-    sed -i -e's/#?MAX_HEAP_SIZE="\d+[MG]"/MAX_HEAP_SIZE="256M"/' #{node.cassandra.conf_dir}/cassandra-env.sh
-    sed -i -e's/#?HEAP_NEWSIZE="\d+[MG]"/HEAP_NEWSIZE="128M"/' #{node.cassandra.conf_dir}/cassandra-env.sh
+  command <<-EOS
+    sed -i -e 's|log4j\.appender\.R\.File=.+/system\.log|log4j.appender.R.File=#{node.cassandra.log_dir}/system.log|' #{node.cassandra.conf_dir}/log4j-server.properties
   EOS
 end
 
@@ -117,41 +118,19 @@ end
   end
 end
 
-[
-  node.cassandra.installation_dir,
-  node.cassandra.log_dir,
-  node.cassandra.run_dir,
-  node.cassandra.data_root_dir,
-  node.cassandra.conf_dir
-].each do |dir|
-  # Chef sets permissions only to leaf nodes, so we have to use a Bash script. MK.
-  bash "chown -R #{node.cassandra.user}:#{node.cassandra.user} #{dir}" do
-    user "root"
-    code "mkdir -p #{dir} && chown -R #{node.cassandra.user}:#{node.cassandra.user} #{dir}"
-  end
-end
-
 template "/etc/security/limits.d/#{node.cassandra.user}.conf" do
   source "cassandra-limits.conf.erb"
   owner node.cassandra.user
   mode  0644
 end
 
-ruby_block "make sure pam_limits.so is required" do
-  block do
-    fe = Chef::Util::FileEdit.new("/etc/pam.d/su")
-    fe.search_file_replace_line(/# session    required   pam_limits.so/, "session    required   pam_limits.so")
-    fe.write_file
-  end
-end
-
 template "/etc/init.d/cassandra" do
-  source "cassandra.init.erb"
+  source 'cassandra.init.erb'
   owner 'root'
   mode  0755
 end
 
-service "cassandra" do
+service 'cassandra' do
   supports :start => true, :stop => true, :restart => true
   action [:enable, :start]
 end
