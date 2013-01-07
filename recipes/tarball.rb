@@ -54,7 +54,7 @@ execute 'check tarball integrity' do
   only_if { node.cassandra.tarball.md5 }
 end
 
-execute "extract the tarball and move it to #{node.cassandra.installation_dir}" do
+execute "extract tarball to #{node.cassandra.installation_dir}" do
   user 'root'
   cwd  Dir.tmpdir
   command <<-EOS
@@ -77,18 +77,16 @@ end
 execute 'fix permissions' do
   user 'root'
   command <<-EOS
-  chown -R #{node.cassandra.user}:#{node.cassandra.user} #{node.cassandra.installation_dir}
-  chmod -R 755 #{node.cassandra.run_dir} #{node.cassandra.log_dir} #{node.cassandra.data_root_dir}
+    chown -R #{node.cassandra.user}:#{node.cassandra.user} #{node.cassandra.installation_dir}
+    chmod -R 755 #{node.cassandra.run_dir} #{node.cassandra.log_dir} #{node.cassandra.data_root_dir}
   EOS
 end
 
-actual_conf_dir = File.join(node.cassandra.installation_dir, 'conf')
-
-unless node.cassandra.conf_dir == actual_conf_dir
-  execute "link #{node.cassandra.conf_dir} to #{actual_conf_dir}" do
-    user 'root'
-    command "ln -fs #{actual_conf_dir} #{node.cassandra.conf_dir}"
-  end
+execute "link #{node.cassandra.conf_dir}" do
+  actual_conf_dir = File.join(node.cassandra.installation_dir, 'conf')
+  user 'root'
+  command "ln -fs #{actual_conf_dir} #{node.cassandra.conf_dir}"
+  not_if { node.cassandra.conf_dir == actual_conf_dir }
 end
 
 %w(cassandra.yaml).each do |f|
@@ -103,16 +101,13 @@ end
 execute "change RMI settings in cassandra-env.sh" do
   c_env_path = File.join(node.cassandra.conf_dir, 'cassandra-env.sh')
   user node.cassandra.user
-  command <<-EOS
-    grep 'java.rmi.server.hostname=#{node.cassandra.listen_address}' #{c_env_path} > /dev/null || sed -i -e 's/JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.authenticate=false"/&\\nJVM_OPTS="$JVM_OPTS -Djava.rmi.server.hostname=#{node.cassandra.listen_address}"/' #{c_env_path}
-  EOS
+  command %<sed -i -e 's/JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.authenticate=false"/&\\nJVM_OPTS="$JVM_OPTS -Djava.rmi.server.hostname=#{node.cassandra.listen_address}"/' #{c_env_path}>
+  not_if "grep 'java.rmi.server.hostname=#{node.cassandra.listen_address}' #{c_env_path}"
 end
 
 execute "change logging paths in #{node.cassandra.conf_dir}/log4j-server.properties" do
   user node.cassandra.user
-  command <<-EOS
-    sed -i -e 's|log4j\.appender\.R\.File=.+/system\.log|log4j.appender.R.File=#{node.cassandra.log_dir}/system.log|' #{node.cassandra.conf_dir}/log4j-server.properties
-  EOS
+  command %<sed -i -e 's|log4j\.appender\.R\.File=.+/system\.log|log4j.appender.R.File=#{node.cassandra.log_dir}/system.log|' #{node.cassandra.conf_dir}/log4j-server.properties>
 end
 
 %w(cassandra cassandra-cli cassandra-shuffle cqlsh debug-cqlsh json2sstable nodetool sstable2json sstablekeys sstableloader sstablescrub).each do |f|
