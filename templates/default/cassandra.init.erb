@@ -9,10 +9,8 @@
 . /etc/rc.d/init.d/functions
 
 CASSANDRA_HOME=<%= node.cassandra.installation_dir %>
-CASSANDRA_BIN=$CASSANDRA_HOME/bin/cassandra
 CASSANDRA_PID=<%= node.cassandra.run_dir %>/cassandra.pid
-
-export CASSANDRA_CONF=<%= node.cassandra.conf_dir %>
+CASSANDRA_BIN=$CASSANDRA_HOME/bin/cassandra
 
 if [ ! -f $CASSANDRA_BIN ]; then
   echo "File not found: $CASSANDRA_BIN"
