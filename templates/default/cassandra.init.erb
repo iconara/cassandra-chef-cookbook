@@ -10,6 +10,7 @@
 
 CASSANDRA_HOME=<%= node.cassandra.installation_dir %>
 CASSANDRA_PID=<%= node.cassandra.run_dir %>/cassandra.pid
+CASSANDRA_USER=<%= node.cassandra.user %>
 CASSANDRA_BIN=$CASSANDRA_HOME/bin/cassandra
 
 if [ ! -f $CASSANDRA_BIN ]; then
@@ -25,7 +26,9 @@ start() {
     exit 0
   fi
   echo -n $"Starting Cassandra: "
-  daemon $CASSANDRA_BIN -p $CASSANDRA_PID > /dev/null
+  touch $CASSANDRA_PID
+  chown $CASSANDRA_USER:$CASSANDRA_USER $CASSANDRA_PID
+  daemon --user $CASSANDRA_USER $CASSANDRA_BIN -p $CASSANDRA_PID > /dev/null
   usleep 500000
   RETVAL=$?
   if [ $RETVAL -eq 0 ]; then
