@@ -85,7 +85,7 @@ end
 execute "link #{node.cassandra.conf_dir}" do
   actual_conf_dir = File.join(node.cassandra.installation_dir, 'conf')
   user 'root'
-  command "ln -fs #{actual_conf_dir} #{node.cassandra.conf_dir}"
+  command "ln -nfs #{actual_conf_dir} #{node.cassandra.conf_dir}"
   not_if { node.cassandra.conf_dir == actual_conf_dir }
 end
 
